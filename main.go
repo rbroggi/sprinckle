@@ -2,32 +2,65 @@ package main
 
 import (
 	"bufio"
+	"database/sql"
 	"fmt"
 	"io"
+	"log"
 	"math/rand"
 	"os"
 	"strings"
 	"time"
+
+	_ "github.com/go-sql-driver/mysql"
 )
 
 const otherWord = "*"
 
-var transforms = []string{
-	otherWord,
-	otherWord + "app",
-	otherWord + "site",
-	otherWord + "time",
-	"get" + otherWord,
-	"go" + otherWord,
-	"lets " + otherWord,
-	otherWord + "hq",
-}
-
 func main() {
-	generate(os.Stdin, os.Stdout)
+	transforms := fetchDBTransforms()
+	generate(transforms, os.Stdin, os.Stdout)
 }
 
-func generate(r io.Reader, w io.Writer) {
+func fetchDBTransforms() []string {
+	userName := os.Getenv("MYSQL_USER")
+	pass := os.Getenv("MYSQL_PASS")
+	addr := os.Getenv("MYSQL_ADDR")
+	connString := fmt.Sprintf("%s:%s@tcp(%s)/sprinckle", userName, pass, addr)
+	db, err := sql.Open("mysql", connString)
+	if err != nil {
+		log.Fatal("Couldnt open sql connection", err)
+	}
+	rows, err := db.Query("select value,prefix,suffix from complements;")
+	if err != nil {
+		log.Fatal("couldnt perform query", err)
+	}
+	var transforms []string
+	var value string
+	var prefix bool
+	var suffix bool
+	defer rows.Close()
+	for rows.Next() {
+		err := rows.Scan(&value, &prefix, &suffix)
+		if err != nil {
+			log.Fatal(err)
+		}
+		if suffix {
+			transforms = append(transforms, fmt.Sprintf("%s%s", otherWord, value))
+		}
+		if prefix {
+			transforms = append(transforms, fmt.Sprintf("%s%s", value, otherWord))
+		}
+	}
+	err = rows.Err()
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+
+	return transforms
+}
+
+func generate(transforms []string, r io.Reader, w io.Writer) {
 	rand.Seed(time.Now().UTC().UnixNano())
 	s := bufio.NewScanner(r)
 	for s.Scan() {
