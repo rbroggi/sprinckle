@@ -45,10 +45,10 @@ func fetchDBTransforms() []string {
 			log.Fatal(err)
 		}
 		if suffix {
-			transforms = append(transforms, fmt.Sprintf("%s%s", otherWord, value))
+			transforms = append(transforms, fmt.Sprintf("%s %s", otherWord, value))
 		}
 		if prefix {
-			transforms = append(transforms, fmt.Sprintf("%s%s", value, otherWord))
+			transforms = append(transforms, fmt.Sprintf("%s %s", value, otherWord))
 		}
 	}
 	err = rows.Err()
